@@ -86,24 +86,6 @@ SEC Project/
 
 ## Getting Started
 
-### Prerequisites
-- Python 3.8+
-- Libraries: pandas, openpyxl, requests, numpy
-- 500MB+ free disk space
-
-### Setup Instructions
-
-1. **Navigate to project directory**
-   ```bash
-   cd "c:\Users\dansah\OneDrive - GBC REGION INC\Desktop\SEC Project"
-   ```
-
-2. **Create virtual environment** (if not already created)
-   ```bash
-   python -m venv .venv
-   .venv\Scripts\activate
-   ```
-
 3. **Install dependencies**
    ```bash
    pip install -r pipeline/requirements.txt
@@ -133,6 +115,34 @@ SEC Project/
 - **SIC Code Mappings:** From sec.gov or third-party provider
 - **Financial Metrics:** SEC Edgar API, financial data vendors
 - **Industry Classifications:** OSHA SIC manual or custom grouping
+
+---
+
+---
+
+## Quick Reference: Output Files
+
+### When ready, v2 will generate:
+
+1. **01_timeline_with_sic.xlsx**
+   - Company-year-location records + SIC codes
+   - 31,500+ rows spanning 2015-2025
+
+2. **02_migrations_detailed.xlsx**
+   - All state changes + destinations + industry
+   - 3,792+ migration events
+
+3. **03_financial_profile_departed.xlsx**
+   - Revenue, assets, employees of departing companies
+   - Comparison: departed vs. stable
+
+4. **04_industry_trends.xlsx**
+   - SIC-level summary statistics
+   - Sectors leaving vs. entering Maryland
+
+5. **05_destination_analysis.xlsx**
+   - Where companies relocated
+   - Relocation patterns by state & industry
 
 ---
 
