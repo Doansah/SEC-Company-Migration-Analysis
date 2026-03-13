@@ -1,0 +1,7 @@
+data/sec/quarterly_raw_data
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.xlsx
+data/
