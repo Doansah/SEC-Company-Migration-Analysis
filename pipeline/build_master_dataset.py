@@ -122,8 +122,26 @@ def get_md_company_info(timeline):
 
 
 def classify_origins(timeline, md_info, departures_ciks, arrivals_ciks):
-    """Classify ORIGIN events: companies whose first-ever appearance was in MD."""
+    """Classify ORIGIN events: companies whose first-ever appearance was in MD.
+
+    Origin_Subtype logic:
+    - IPO_IN_MD: Company's earliest SEC filing was 2015+ and in MD (true new company)
+    - FIRST_APPEARANCE: Company existed before our study period (pre-2015) or has
+      extensive filing history — they were already in MD when our data begins.
+
+    Uses cached SEC EDGAR filing dates from analysis/v2_outputs/cache/sec_earliest_filings.json
+    if available, otherwise falls back to timeline-only heuristic.
+    """
+    import json
+
     rows = []
+
+    # Load cached earliest filing dates if available
+    cache_path = os.path.join(V2_OUTPUTS, "cache", "sec_earliest_filings.json")
+    filing_cache = {}
+    if os.path.exists(cache_path):
+        with open(cache_path, "r") as f:
+            filing_cache = json.load(f)
 
     for cik, info in md_info.items():
         # Skip companies that arrived from another state — they're ARRIVAL, not ORIGIN
@@ -135,16 +153,32 @@ def classify_origins(timeline, md_info, departures_ciks, arrivals_ciks):
         first_all = company_all.sort_values("Year").iloc[0]
 
         if first_all["State"] == "MD":
-            # This company originated in MD
-            # Determine subtype: check if they have ANY non-MD records before first MD year
-            pre_md = company_all[
-                (company_all["Year"] < info["first_md_year"])
-                & (company_all["State"] != "MD")
-            ]
-            if len(pre_md) == 0:
-                origin_subtype = "IPO_IN_MD"
-            else:
+            # Determine subtype using SEC EDGAR filing history (cached)
+            cik_str = str(cik)
+            cached_entry = filing_cache.get(cik_str, {})
+            earliest_year = cached_entry.get("earliest_year")
+            has_older = cached_entry.get("has_older_files", False)
+
+            if has_older:
+                # 1000+ filings — definitely established pre-2015
                 origin_subtype = "FIRST_APPEARANCE"
+            elif earliest_year is not None and earliest_year < 2015:
+                origin_subtype = "FIRST_APPEARANCE"
+            elif earliest_year is not None and earliest_year >= 2015:
+                origin_subtype = "IPO_IN_MD"
+            elif info["first_md_year"] <= 2015:
+                # No cached data, event at data boundary — likely pre-existing
+                origin_subtype = "FIRST_APPEARANCE"
+            else:
+                # Fallback: check timeline for non-MD records before first MD year
+                pre_md = company_all[
+                    (company_all["Year"] < info["first_md_year"])
+                    & (company_all["State"] != "MD")
+                ]
+                if len(pre_md) == 0:
+                    origin_subtype = "IPO_IN_MD"
+                else:
+                    origin_subtype = "FIRST_APPEARANCE"
 
             rows.append({
                 "CIK": cik,
@@ -418,10 +452,12 @@ def enrich_with_financials(events_df, fin_departed, fin_arrivals):
         shares.append(int(share) if pd.notna(share) else None)
         exch = fin.get("Exchange_Tier")
         exchanges.append(exch)
-        fin_available.append(any(
+        has_market_data = any(
             pd.notna(fin.get(k))
-            for k in ["Market_Cap_At_Event", "Stock_Price_At_Event", "Revenue"]
-        ))
+            for k in ["Market_Cap_At_Event", "Stock_Price_At_Event", "Shares_Outstanding_At_Event"]
+        )
+        has_revenue = pd.notna(fin.get("Revenue"))
+        fin_available.append(has_market_data or has_revenue)
 
     events_df["Ticker"] = tickers
     events_df["Market_Cap_At_Event"] = mcaps
@@ -507,9 +543,36 @@ def build_master_dataset():
     events_df = apply_cpi_adjustment(events_df)
 
     # Add remaining columns
-    events_df["Market_Cap_Current"] = None  # Future enrichment
+    events_df["Market_Cap_Current"] = None  # Populated by enrich_master_dataset.py
     events_df["Verification_Status"] = "UNVERIFIED"
     events_df["Notes"] = None
+
+    # Company_Size_Tier based on Market_Cap_At_Event
+    def _size_tier(mcap):
+        if pd.isna(mcap) or mcap is None:
+            return "UNKNOWN"
+        if mcap > 10_000_000_000:
+            return "LARGE_CAP"
+        elif mcap >= 2_000_000_000:
+            return "MID_CAP"
+        elif mcap >= 300_000_000:
+            return "SMALL_CAP"
+        else:
+            return "MICRO_CAP"
+
+    events_df["Company_Size_Tier"] = events_df["Market_Cap_At_Event"].apply(_size_tier)
+
+    # Is_Still_In_MD: False if company has a departure/attrition event
+    departed_ciks_set = set()
+    for _, row in events_df.iterrows():
+        if row["Event_Type"] in ("RELOCATION_DEPARTURE", "ATTRITION"):
+            departed_ciks_set.add(str(row["CIK"]))
+    events_df["Is_Still_In_MD"] = ~events_df["CIK"].astype(str).isin(departed_ciks_set)
+
+    # Attrition_Reason: null for non-attrition rows, UNKNOWN for attrition rows
+    # (populated by enrich_master_dataset.py with actual values)
+    events_df["Attrition_Reason"] = None
+    events_df.loc[events_df["Event_Type"] == "ATTRITION", "Attrition_Reason"] = "UNKNOWN"
 
     # Reorder columns to match target schema
     column_order = [
@@ -526,6 +589,9 @@ def build_master_dataset():
         "Market_Cap_At_Event", "Market_Cap_At_Event_CPI_Adjusted",
         "Stock_Price_At_Event", "Shares_Outstanding_At_Event",
         "Market_Cap_Current", "Exchange_Tier", "Financial_Data_Available",
+        "Company_Size_Tier",
+        # Status
+        "Is_Still_In_MD", "Attrition_Reason",
         # Metadata
         "Data_Source", "Verification_Status", "Notes",
     ]

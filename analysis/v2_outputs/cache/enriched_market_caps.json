@@ -1,0 +1,64 @@
+{
+  "1871638_2024": {
+    "market_cap": 193225798.17145348,
+    "price": 1.809999942779541,
+    "shares": 106754588,
+    "ticker": "BRTX"
+  },
+  "944480_2024": {
+    "market_cap": null,
+    "ticker": "GVP"
+  },
+  "1592057_2023": {
+    "market_cap": null,
+    "ticker": "EVA"
+  },
+  "927355_2023": {
+    "market_cap": null,
+    "ticker": "TESS"
+  },
+  "1862068_2022": {
+    "market_cap": null,
+    "ticker": "FOUN"
+  },
+  "1301838_2020": {
+    "market_cap": null,
+    "ticker": "PPGX"
+  },
+  "704051_2020": {
+    "market_cap": null,
+    "ticker": "LM"
+  },
+  "1075857_2020": {
+    "market_cap": null,
+    "ticker": "VSYM"
+  },
+  "1524741_2019": {
+    "market_cap": null,
+    "ticker": "SLCA"
+  },
+  "1354591_2018": {
+    "market_cap": 561796.9313408118,
+    "price": 0.007000000216066837,
+    "shares": 80256702,
+    "ticker": "PTLF"
+  },
+  "1599947_2018": {
+    "market_cap": null,
+    "ticker": "TERP"
+  },
+  "1620702_2017": {
+    "market_cap": null,
+    "ticker": "GLBL"
+  },
+  "1413488_2015": {
+    "market_cap": null,
+    "ticker": "MCTC"
+  },
+  "852437_2015": {
+    "market_cap": 52496710.961520195,
+    "price": 1.7636020183563232,
+    "shares": 29766756,
+    "ticker": "RWWI"
+  }
+}
